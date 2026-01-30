@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         GPT 对话问题导航 (支持站点  chatgpt.com, gemini.google.com, 豆包, Kimi, DeepSeek)
 // @namespace    http://tampermonkey.net/
-// @version      2.1
-// @description  UI升级：清新浅色系、磨砂玻璃特效、平滑动效、智能侧边吸附
+// @version      2.4
+// @description  UI升级：修复搜索复原逻辑、消除遮挡、完美交互体验
 // @match        https://gemini.google.com/app/*
 // @match        https://chatgpt.com/c/*
 // @match        https://www.doubao.com/chat/*
@@ -10,8 +10,8 @@
 // @match        https://chat.deepseek.com/a/chat/s/*
 // @grant        none
 // @license      MIT
-// @downloadURL  https://raw.githubusercontent.com/你的用户名/你的仓库名/main/ChatNavigator.user.js
-// @updateURL    https://raw.githubusercontent.com/你的用户名/你的仓库名/main/ChatNavigator.user.js
+// @downloadURL  https://github.com/hechen-coder/chat-navigator/raw/main/ChatNavigator.user.js
+// @updateURL    https://github.com/hechen-coder/chat-navigator/raw/main/ChatNavigator.user.js
 // ==/UserScript==
 
 (function () {
@@ -53,6 +53,7 @@
     }
 
     const ICONS = {
+        search: "M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z",
         refresh: "M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z",
         minimize: "M19 13H5v-2h14v2z",
         close: "M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z",
@@ -63,44 +64,79 @@
     waitForBody(() => {
         const style = document.createElement('style');
         style.textContent = `
-            /* --- 核心面板：浅色磨砂玻璃 --- */
+            /* --- 核心面板：布局修复 --- */
             #gpt-nav-panel {
                 font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-                /* 浅色半透明背景：乳白色 */
-                background: rgba(255, 255, 255, 0.85);
+                background: rgba(255, 255, 255, 0.90);
                 backdrop-filter: blur(25px) saturate(180%);
                 -webkit-backdrop-filter: blur(25px) saturate(180%);
-
-                /* 边框：极细的白色内发光 + 浅灰边框 */
                 border: 1px solid rgba(255, 255, 255, 0.6);
-                /* 阴影：柔和的弥散投影，增加悬浮感 */
-                box-shadow:
-                    0 6px 24px rgba(0,0,0,0.08),
-                    0 1px 4px rgba(0,0,0,0.04),
-                    inset 0 0 0 1px rgba(255,255,255,0.5);
-
+                box-shadow: 0 6px 24px rgba(0,0,0,0.08), 0 1px 4px rgba(0,0,0,0.04), inset 0 0 0 1px rgba(255,255,255,0.5);
                 border-radius: 14px;
-                transition: width 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
+                transition: width 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), 
                             height 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
                             border-radius 0.3s ease;
-
-                /* 字体颜色：深灰，柔和不刺眼 */
                 color: #374151;
+                /* 关键布局：Flex 列布局 */
+                display: flex;
+                flex-direction: column;
             }
 
             /* --- 顶部栏 --- */
             .gpt-nav-header {
-                /* 顶部稍微加一点点灰，区分层次 */
                 background: rgba(240, 240, 245, 0.3);
                 border-bottom: 1px solid rgba(0, 0, 0, 0.05);
                 padding: 12px 14px;
                 border-radius: 14px 14px 0 0;
+                /* 防止顶部栏被压缩 */
+                flex-shrink: 0;
             }
             .gpt-nav-title {
                 font-weight: 600;
                 font-size: 14px;
-                color: #1f2937; /* 接近黑色 */
+                color: #1f2937;
                 letter-spacing: 0.3px;
+            }
+
+            /* --- 搜索框区域 --- */
+            .gpt-search-box {
+                /* 默认高度 0，不占据空间 */
+                height: 0;
+                opacity: 0;
+                overflow: hidden;
+                transition: height 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease, padding 0.3s ease;
+                /* 防止搜索框被压缩 */
+                flex-shrink: 0;
+                border-bottom: 1px solid transparent; 
+            }
+            .gpt-search-box.open {
+                height: 42px;
+                opacity: 1;
+                padding: 4px 12px;
+                border-bottom: 1px solid rgba(0,0,0,0.03); /* 分割线 */
+            }
+            .gpt-search-input {
+                width: 100%;
+                height: 30px;
+                background: rgba(0, 0, 0, 0.04);
+                border: 1px solid rgba(0, 0, 0, 0.08);
+                border-radius: 6px;
+                padding: 0 8px;
+                font-size: 13px;
+                color: #374151;
+                outline: none;
+                transition: all 0.2s;
+                box-sizing: border-box; 
+            }
+            /* 取消边缘发亮效果
+            .gpt-search-input:focus {
+                background: #fff;
+                border-color: rgba(59, 130, 246, 0.5);
+                box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+            }
+            */
+            .gpt-search-input::placeholder {
+                color: #9ca3af;
             }
 
             /* --- 按钮美化 --- */
@@ -108,7 +144,7 @@
                 width: 28px;
                 height: 28px;
                 border-radius: 6px;
-                color: #6b7280; /* 中灰色图标 */
+                color: #6b7280;
                 transition: all 0.2s ease;
                 display: flex;
                 align-items: center;
@@ -117,17 +153,23 @@
                 border: none;
                 cursor: pointer;
             }
-            .gpt-nav-btn:hover {
+            .gpt-nav-btn:hover, .gpt-nav-btn.active {
                 color: #111;
-                background: rgba(0, 0, 0, 0.06); /* 浅灰 Hover */
+                background: rgba(0, 0, 0, 0.06);
                 transform: scale(1.05);
             }
+            .gpt-nav-btn.active {
+                color: #2563eb;
+                background: rgba(59, 130, 246, 0.1);
+            }
 
-            /* --- 列表内容区 --- */
+            /* --- 列表内容区 (自适应剩余空间) --- */
             .gpt-nav-content {
                 padding: 6px;
+                flex: 1; 
+                overflow-y: auto;
+                min-height: 0; 
             }
-            /* 滚动条：深灰色细条 */
             .gpt-nav-content::-webkit-scrollbar { width: 4px; }
             .gpt-nav-content::-webkit-scrollbar-track { background: transparent; }
             .gpt-nav-content::-webkit-scrollbar-thumb {
@@ -141,22 +183,18 @@
                 padding: 8px 10px;
                 margin-bottom: 2px;
                 border-radius: 8px;
-                color: #4b5563; /* 主要文字深灰 */
+                color: #4b5563;
                 font-size: 13px;
                 line-height: 1.5;
                 cursor: pointer;
                 transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
                 border: 1px solid transparent;
             }
-
-            /* 列表 Hover: 浅灰背景 + 深色字 */
             .gpt-nav-item:hover {
                 background: rgba(0, 0, 0, 0.04);
                 color: #000;
                 transform: translateX(2px);
             }
-
-            /* 点击高亮闪烁：清新的蓝色 */
             @keyframes flash-active {
                 0% { background: rgba(0, 0, 0, 0.04); }
                 50% { background: rgba(59, 130, 246, 0.15); color: #2563eb; }
@@ -166,26 +204,26 @@
                 animation: flash-active 0.4s ease;
             }
 
-            /* --- 折叠态 (白色小圆球) --- */
+            /* --- 折叠态 --- */
             #gpt-nav-panel.collapsed {
                 width: 50px !important;
                 height: 50px !important;
                 border-radius: 25px !important;
-                background: #ffffff !important; /* 纯白背景 */
+                background: #ffffff !important;
                 box-shadow: 0 4px 16px rgba(0,0,0,0.15), 0 0 0 1px rgba(0,0,0,0.05) !important;
                 cursor: pointer;
             }
-            #gpt-nav-panel.collapsed .gpt-nav-header,
-            #gpt-nav-panel.collapsed .gpt-nav-content {
+            #gpt-nav-panel.collapsed > div:not(.gpt-collapsed-view) {
                 display: none !important;
             }
+            
             .gpt-collapsed-view {
                 display: none;
                 width: 100%;
                 height: 100%;
                 align-items: center;
                 justify-content: center;
-                color: #333; /* 图标深色 */
+                color: #333;
             }
             #gpt-nav-panel.collapsed .gpt-collapsed-view {
                 display: flex;
@@ -209,13 +247,15 @@
             width: '280px',
             height: 'auto',
             maxHeight: '65vh',
-            display: 'flex',
-            flexDirection: 'column',
             zIndex: '999999',
         });
         document.body.appendChild(panel);
 
-        // Header
+        // --- 共享变量 ---
+        let searchTerm = ''; // 当前搜索词
+        let searchInputRef = null; // 输入框引用
+
+        // --- Header ---
         const header = document.createElement('div');
         header.className = 'gpt-nav-header';
         Object.assign(header.style, { display: 'flex', justifyContent: 'space-between', alignItems: 'center' });
@@ -238,6 +278,33 @@
             return btn;
         };
 
+        // 1. 搜索按钮 
+        const btnSearch = createBtn(ICONS.search, '搜索问题', (e, btn) => {
+            const box = document.querySelector('.gpt-search-box');
+            if (box) {
+                const isOpen = box.classList.contains('open');
+                if (isOpen) {
+                    // === 关闭逻辑 ===
+                    box.classList.remove('open');
+                    btn.classList.remove('active');
+                    
+                    // 清空输入框和逻辑变量
+                    if (searchInputRef) searchInputRef.value = '';
+                    searchTerm = '';
+                    
+                    // 强制刷新 (复原列表)
+                    window._gptNavRefresh(); 
+                } else {
+                    // === 打开逻辑 ===
+                    box.classList.add('open');
+                    btn.classList.add('active');
+                    setTimeout(() => searchInputRef && searchInputRef.focus(), 100);
+                }
+            }
+        });
+        btnGroup.appendChild(btnSearch);
+
+        // 2. 刷新按钮
         btnGroup.appendChild(createBtn(ICONS.refresh, '刷新列表', (e, btn) => {
              const svg = btn.querySelector('svg');
              if(svg) {
@@ -247,22 +314,42 @@
              }
              scheduleRefresh(0);
         }));
-        btnGroup.appendChild(createBtn(ICONS.minimize, '折叠 (自动吸附)', () => toggleCollapsed(true)));
+
+        btnGroup.appendChild(createBtn(ICONS.minimize, '折叠', () => toggleCollapsed(true)));
         btnGroup.appendChild(createBtn(ICONS.close, '关闭', () => panel.style.display = 'none'));
 
         header.appendChild(btnGroup);
         panel.appendChild(header);
 
-        // Content
+        // --- 搜索框容器 ---
+        const searchContainer = document.createElement('div');
+        searchContainer.className = 'gpt-search-box';
+        
+        const searchInput = document.createElement('input');
+        searchInput.className = 'gpt-search-input';
+        searchInput.type = 'text';
+        searchInput.placeholder = '输入关键词搜索...';
+        searchInput.addEventListener('pointerdown', e => e.stopPropagation());
+        searchInput.addEventListener('click', e => e.stopPropagation());
+        
+        // 绑定输入逻辑：实时响应
+        searchInput.addEventListener('input', (e) => {
+            searchTerm = e.target.value.trim().toLowerCase();
+            window._gptNavRefresh(); // 触发刷新
+        });
+        
+        searchInputRef = searchInput;
+        searchContainer.appendChild(searchInput);
+        panel.appendChild(searchContainer);
+
+        // --- Content ---
         const contentContainer = document.createElement('div');
         contentContainer.className = 'gpt-nav-content';
-        Object.assign(contentContainer.style, { flex: '1', overflowY: 'auto' });
         panel.appendChild(contentContainer);
 
-        // Collapsed View
+        // --- Collapsed View ---
         const collapsedView = document.createElement('div');
         collapsedView.className = 'gpt-collapsed-view';
-        collapsedView.title = '点击展开';
         collapsedView.appendChild(createSVGIcon(ICONS.logo));
         panel.appendChild(collapsedView);
 
@@ -305,7 +392,7 @@
             let startX, startY, startLeft, startTop;
 
             panel.addEventListener('pointerdown', e => {
-                if (e.target.closest('button') || (!isCollapsed && contentContainer.contains(e.target))) return;
+                if (e.target.closest('button') || e.target.closest('input') || (!isCollapsed && contentContainer.contains(e.target))) return;
                 dragging = true;
                 panel.setPointerCapture(e.pointerId);
                 startX = e.clientX;
@@ -329,62 +416,89 @@
             panel.addEventListener('pointerup', () => { dragging = false; });
         })();
 
+        // === 核心刷新逻辑 (修复版) ===
         let lastSnapshot = "";
+        let lastSearchTerm = "";
+
         window._gptNavRefresh = () => {
             let nodes = [];
             try { nodes = Array.from(document.querySelectorAll(site.selector)); } catch(e){}
 
-            const snapshot = nodes.length + ":" + nodes.map(n => {
+            // 1. 生成页面快照
+            const currentSnapshot = nodes.length + ":" + nodes.map(n => {
                  const t = n.querySelector('[data-testid="message_text_content"]');
                  return (t ? t.textContent : (n.innerText||n.textContent)).trim();
             }).join('|');
-
-            if (snapshot === lastSnapshot) return;
-            lastSnapshot = snapshot;
+            
+            // 2. 判定是否需要重绘
+            // 只有当【页面内容没变】且【搜索词也没变】时，才跳过
+            // 如果搜索词变了（比如从"apple"变成了""），必须强制重绘
+            if (currentSnapshot === lastSnapshot && searchTerm === lastSearchTerm) {
+                return;
+            }
+            
+            // 更新状态记录
+            lastSnapshot = currentSnapshot;
+            lastSearchTerm = searchTerm; // 关键修复
 
             contentContainer.textContent = '';
-            if (!nodes.length) {
+            
+            // 3. 过滤与生成
+            const validNodes = nodes.map((msg, idx) => {
+                if (msg.closest('[data-gpt-nav-ignore]')) return null;
+                const raw = msg.innerText || msg.textContent || '';
+                const text = raw.trim();
+                if(!text) return null;
+                
+                // 搜索过滤
+                if (searchTerm && !text.toLowerCase().includes(searchTerm)) {
+                    return null; 
+                }
+                return { msg, text, idx: idx + 1 };
+            }).filter(Boolean);
+
+            if (!validNodes.length) {
                 const empty = document.createElement('div');
-                empty.textContent = '暂无提问';
+                empty.textContent = searchTerm ? '无匹配结果' : '暂无提问';
                 empty.style.padding = '15px';
                 empty.style.textAlign = 'center';
                 empty.style.fontSize = '12px';
-                empty.style.color = '#9ca3af'; // 浅灰提示
+                empty.style.color = '#9ca3af';
                 contentContainer.appendChild(empty);
                 return;
             }
 
-            nodes.forEach((msg, idx) => {
-                if (idx > 300) return;
-                if (msg.closest('[data-gpt-nav-ignore]')) return;
+            const renderList = validNodes.length > 300 ? validNodes.slice(0, 300) : validNodes;
 
-                const raw = msg.innerText || msg.textContent || '';
-                const text = raw.trim();
-                if(!text) return;
+            renderList.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'gpt-nav-item';
+                
+                const display = item.text.length > 60 ? item.text.slice(0, 30) + ' ... ' + item.text.slice(-30) : item.text;
+                div.textContent = `${item.idx}. ${display}`;
 
-                const item = document.createElement('div');
-                item.className = 'gpt-nav-item';
-                const display = text.length > 60 ? text.slice(0, 30) + ' ... ' + text.slice(-20) : text;
-                item.textContent = `${idx + 1}. ${display}`;
-
-                item.onclick = () => {
-                    msg.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    item.classList.add('gpt-item-active');
-                    setTimeout(() => item.classList.remove('gpt-item-active'), 500);
-
-                    const target = msg.querySelector('[data-testid="message_text_content"]') || msg;
+                div.onclick = () => {
+                    item.msg.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    div.classList.add('gpt-item-active');
+                    setTimeout(() => div.classList.remove('gpt-item-active'), 500);
+                    
+                    const target = item.msg.querySelector('[data-testid="message_text_content"]') || item.msg;
                     const oldTrans = target.style.transition;
                     const oldBg = target.style.backgroundColor;
                     target.style.transition = 'background-color 0.5s';
-                    target.style.backgroundColor = 'rgba(59, 130, 246, 0.2)'; // 蓝色高亮
+                    target.style.backgroundColor = 'rgba(59, 130, 246, 0.2)';
                     setTimeout(() => {
                         target.style.backgroundColor = oldBg;
                         setTimeout(() => target.style.transition = oldTrans, 500);
                     }, 1000);
                 };
-                contentContainer.appendChild(item);
+                contentContainer.appendChild(div);
             });
-            setTimeout(() => contentContainer.scrollTo({ top: contentContainer.scrollHeight, behavior: 'auto' }), 50);
+            
+            // 仅在非搜索模式下自动滚到底部
+            if (!searchTerm) {
+                setTimeout(() => contentContainer.scrollTo({ top: contentContainer.scrollHeight, behavior: 'auto' }), 50);
+            }
         };
     });
 
