@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         GPT 对话问题导航 (支持站点  chatgpt.com, gemini.google.com, 豆包, Kimi, DeepSeek)
 // @namespace    http://tampermonkey.net/
-// @version      2.4
+// @version      2.5
 // @description  UI升级：修复搜索复原逻辑、消除遮挡、完美交互体验
 // @match        https://gemini.google.com/app/*
 // @match        https://chatgpt.com/c/*
