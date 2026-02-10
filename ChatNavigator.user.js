@@ -1,13 +1,14 @@
 // ==UserScript==
-// @name         GPT 对话问题导航 (支持站点  chatgpt.com, gemini.google.com, 豆包, Kimi, DeepSeek)
+// @name         GPT 对话问题导航 (支持站点  chatgpt.com, gemini.google.com, 豆包, Kimi, DeepSeek, 千问)
 // @namespace    http://tampermonkey.net/
-// @version      2.5
+// @version      2.6
 // @description  UI升级：修复搜索复原逻辑、消除遮挡、完美交互体验
 // @match        https://gemini.google.com/app/*
 // @match        https://chatgpt.com/c/*
 // @match        https://www.doubao.com/chat/*
 // @match        https://www.kimi.com/chat/*
 // @match        https://chat.deepseek.com/a/chat/s/*
+// @match        https://www.qianwen.com/chat/*
 // @grant        none
 // @license      MIT
 // @downloadURL  https://github.com/hechen-coder/chat-navigator/raw/main/ChatNavigator.user.js
@@ -25,7 +26,8 @@
         { name: 'Gemini', match: url => { try { return new URL(url).host === 'gemini.google.com'; } catch(e){return false;} }, selector: 'div.query-text.gds-body-l' },
         { name: '豆包', match: url => url.startsWith('https://www.doubao.com/chat/'), selector: 'div[data-testid="send_message"]' },
         { name: 'Kimi', match: url => url.startsWith('https://www.kimi.com/chat/'), selector: 'div.user-content' },
-        { name: 'DeepSeek', match: url => url.startsWith('https://chat.deepseek.com/a/chat/s/'), selector: 'div.fbb737a4' }
+        { name: 'DeepSeek', match: url => url.startsWith('https://chat.deepseek.com/a/chat/s/'), selector: 'div.fbb737a4' },
+        { name: 'Qianwen', match: url => url.startsWith('https://www.qianwen.com/chat/'), selector: 'div.bubble-uo23is' }
     ];
 
     const site = SITE_CONFIGS.find(cfg => cfg.match(location.href));
@@ -195,6 +197,7 @@
                 color: #000;
                 transform: translateX(2px);
             }
+        
             @keyframes flash-active {
                 0% { background: rgba(0, 0, 0, 0.04); }
                 50% { background: rgba(59, 130, 246, 0.15); color: #2563eb; }
@@ -477,6 +480,10 @@
                 const display = item.text.length > 60 ? item.text.slice(0, 30) + ' ... ' + item.text.slice(-30) : item.text;
                 div.textContent = `${item.idx}. ${display}`;
 
+                // 只有当文本长度超过 60（即被截断隐藏了）时，才添加 title 属性
+                if (item.text.length > 60) {
+                    div.title = item.text;
+                }
                 div.onclick = () => {
                     item.msg.scrollIntoView({ behavior: 'smooth', block: 'center' });
                     div.classList.add('gpt-item-active');
