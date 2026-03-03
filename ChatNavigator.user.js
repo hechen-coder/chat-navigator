@@ -1,14 +1,16 @@
 // ==UserScript==
 // @name         GPT 对话问题导航 (支持站点  chatgpt.com, gemini.google.com, 豆包, Kimi, DeepSeek, 千问)
 // @namespace    http://tampermonkey.net/
-// @version      2.6
-// @description  UI升级：修复搜索复原逻辑、消除遮挡、完美交互体验
+// @version      2.7
+// @description  交互升级：滚动至目标dom位置设置为 start 且含 header px  适配升级： 兼容 grok claude
 // @match        https://gemini.google.com/app/*
 // @match        https://chatgpt.com/c/*
 // @match        https://www.doubao.com/chat/*
 // @match        https://www.kimi.com/chat/*
 // @match        https://chat.deepseek.com/a/chat/s/*
 // @match        https://www.qianwen.com/chat/*
+// @match        https://grok.com/*
+// @match        https://claude.ai/chat/*
 // @grant        none
 // @license      MIT
 // @downloadURL  https://github.com/hechen-coder/chat-navigator/raw/main/ChatNavigator.user.js
@@ -17,25 +19,31 @@
 
 (function () {
     'use strict';
-
+    // 确保只在主页运行
     if (window.top !== window.self) return;
 
     // === 1. 站点配置 ===
+    // 通过 selector 指定不同 AI 站点“用户提问内容”所在的 DOM 元素类名
     const SITE_CONFIGS = [
         { name: 'GPT', match: url => url.startsWith('https://chatgpt.com/c/'), selector: 'div.whitespace-pre-wrap' },
         { name: 'Gemini', match: url => { try { return new URL(url).host === 'gemini.google.com'; } catch(e){return false;} }, selector: 'div.query-text.gds-body-l' },
         { name: '豆包', match: url => url.startsWith('https://www.doubao.com/chat/'), selector: 'div[data-testid="send_message"]' },
         { name: 'Kimi', match: url => url.startsWith('https://www.kimi.com/chat/'), selector: 'div.user-content' },
         { name: 'DeepSeek', match: url => url.startsWith('https://chat.deepseek.com/a/chat/s/'), selector: 'div.fbb737a4' },
-        { name: 'Qianwen', match: url => url.startsWith('https://www.qianwen.com/chat/'), selector: 'div.bubble-uo23is' }
+        { name: 'Qianwen', match: url => url.startsWith('https://www.qianwen.com/chat/'), selector: 'div.bubble-uo23is' },
+                { name: 'Grok', match: url => { try { return new URL(url).host === 'grok.com'; } catch(e){return false;} }, selector: 'div.message-bubble.bg-surface-l1' },
+        { name: 'Claude', match: url => url.startsWith('https://claude.ai/chat/'), selector: 'div[data-testid="user-message"]' }
     ];
 
     const site = SITE_CONFIGS.find(cfg => cfg.match(location.href));
     if (!site) return;
 
+    // 监听变化根节点
     const OBSERVE_ROOT = document.body;
+    // 防抖延迟，防止频繁刷新卡顿
     const DEBOUNCE_MS = 250;
 
+    // 等待 DOM 加载完毕的工具函数
     function waitForBody(cb) {
         document.body ? cb() : setTimeout(() => waitForBody(cb), 50);
     }
@@ -239,6 +247,7 @@
 
     // === 4. 构建 UI ===
     waitForBody(() => {
+        // 创建主面板 DOM
         const panel = document.createElement('div');
         panel.id = 'gpt-nav-panel';
         panel.setAttribute('data-gpt-nav-ignore', '1');
@@ -390,6 +399,7 @@
             }
         });
 
+        // --- 拖拽功能实现 ---
         (function enablePanelDrag() {
             let dragging = false;
             let startX, startY, startLeft, startTop;
@@ -485,10 +495,13 @@
                     div.title = item.text;
                 }
                 div.onclick = () => {
-                    item.msg.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    // 滚动到目标元素
+                    item.msg.style.scrollMarginTop = '80px';
+                    item.msg.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    // 导航栏自身的点击闪烁反馈
                     div.classList.add('gpt-item-active');
                     setTimeout(() => div.classList.remove('gpt-item-active'), 500);
-                    
+                    // 目标元素的背景高亮反馈
                     const target = item.msg.querySelector('[data-testid="message_text_content"]') || item.msg;
                     const oldTrans = target.style.transition;
                     const oldBg = target.style.backgroundColor;

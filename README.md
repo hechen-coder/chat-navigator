@@ -1,6 +1,6 @@
 # 🚀 Chat Navigator (GPT 对话问题导航)
 
-**Chat Navigator** 是一款专为 AI 聊天界面设计的用户脚本（UserScript）。它为 ChatGPT、Gemini、豆包等平台提供了一个悬浮导航面板，帮助你在单个聊天长对话中快速定位历史提问，提高查找效率。
+**Chat Navigator** 是一款专为 AI 聊天界面设计的用户脚本（UserScript）。它为 ChatGPT、Gemini、豆包、grok、claude、千问、deepseek等平台提供了一个悬浮导航面板，帮助你在单个聊天长对话中快速定位历史提问，提高查找效率。
 
 ## ✨ 核心特性
 
