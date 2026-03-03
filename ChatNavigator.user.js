@@ -2,7 +2,7 @@
 // @name         GPT 对话问题导航 (支持站点  chatgpt.com, gemini.google.com, 豆包, Kimi, DeepSeek, 千问)
 // @namespace    http://tampermonkey.net/
 // @version      2.7
-// @description  交互升级：滚动至目标dom位置设置为 start 且含 header px  适配升级： 兼容 grok claude
+// @description  UI升级：修复搜索复原逻辑、消除遮挡、完美交互体验   适配升级： 兼容 grok claude
 // @match        https://gemini.google.com/app/*
 // @match        https://chatgpt.com/c/*
 // @match        https://www.doubao.com/chat/*
@@ -436,12 +436,28 @@
         window._gptNavRefresh = () => {
             let nodes = [];
             try { nodes = Array.from(document.querySelectorAll(site.selector)); } catch(e){}
+            
+            // 净文本提取辅助函数
+            const getCleanText = (el) => {
+                // 1. 针对 ChatGPT 等有明确内容容器的站点，优先提取精准容器
+                const specificNode = el.querySelector('[data-testid="message_text_content"]');
+                if (specificNode) return (specificNode.innerText || specificNode.textContent).trim();
+
+                // 2. 针对 Gemini 等站点，克隆节点并剔除“视觉隐藏”元素
+                const clone = el.cloneNode(true);
+                // 兼容多个站点的隐藏类名 (Gemini的 cdk-visually-hidden, 通用的 sr-only 等)
+                const hiddenElements = clone.querySelectorAll('.cdk-visually-hidden, .sr-only, .visually-hidden');
+                hiddenElements.forEach(hiddenEl => hiddenEl.remove());
+
+                return (clone.innerText || clone.textContent || '').trim();
+            };
 
             // 1. 生成页面快照
-            const currentSnapshot = nodes.length + ":" + nodes.map(n => {
-                 const t = n.querySelector('[data-testid="message_text_content"]');
-                 return (t ? t.textContent : (n.innerText||n.textContent)).trim();
-            }).join('|');
+            // const currentSnapshot = nodes.length + ":" + nodes.map(n => {
+            //      const t = n.querySelector('[data-testid="message_text_content"]');
+            //      return (t ? t.textContent : (n.innerText||n.textContent)).trim();
+            // }).join('|');
+            const currentSnapshot = nodes.length + ":" + nodes.map(n => getCleanText(n)).join('|');
             
             // 2. 判定是否需要重绘
             // 只有当【页面内容没变】且【搜索词也没变】时，才跳过
@@ -459,8 +475,8 @@
             // 3. 过滤与生成
             const validNodes = nodes.map((msg, idx) => {
                 if (msg.closest('[data-gpt-nav-ignore]')) return null;
-                const raw = msg.innerText || msg.textContent || '';
-                const text = raw.trim();
+                const text = getCleanText(msg);
+                
                 if(!text) return null;
                 
                 // 搜索过滤
