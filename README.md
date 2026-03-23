@@ -10,6 +10,7 @@
   - **一键折叠**：点击面板或折叠按钮即可变为极简的小圆球，减少视觉干扰。
   - **快捷键支持**：使用 `Alt + Q` 快速显示或隐藏整个面板。
   - **便捷搜索**：可在搜索栏按照关键词搜索询问。
+  - **导出内容**（图片 / Markdown / PDF）
 - **🛡️ 安全可靠**：严格遵守原生 DOM 构建准则（无 `innerHTML`），兼容 Gemini 等高安全等级网站的 CSP 策略。
 
 ------
@@ -20,9 +21,43 @@
 2. **一键安装**：点击下方的按钮，在弹出的窗口中点击“安装”或“更新”：
 
 > [!IMPORTANT]
->
-> ### [🚀 点击此处一键安装脚本](https://github.com/hechen-coder/chat-navigator/raw/refs/heads/main/ChatNavigator.user.js)
 
+> 请根据你的需求选择版本安装：   
+> 
+> 稳定版（主线）：[🚀 点击此处一键安装脚本](https://github.com/hechen-coder/chat-navigator/raw/main/ChatNavigator.user.js)
+>
+> 增强版（2.8）：[🚀 点击此处一键安装脚本](https://github.com/hechen-coder/chat-navigator/raw/main/ChatNavigator_v2.8.user.js)
+
+## 版本说明
+
+### 主线版本（ChatNavigator.user.js）
+
+- 聚焦“问题导航”与“快速跳转”
+- 兼容主流站点的基础提问索引能力
+- 交互轻量，适合只需要导航的场景
+
+### 2.8 增强版（ChatNavigator_v2.8.user.js）
+
+在主线能力基础上新增：
+
+- 结构化会话抽取（role/text/html/el/index/time）
+- 导出菜单（图片 / Markdown / PDF）
+- Markdown 导出保留列表、代码块等格式（HTML -> Markdown）
+- 导航刷新策略优化（去重与稳定性增强）
+- 多站点选择器补全（含 Claude / Grok / Kimi / Qianwen 的回复容器适配）
+
+## Gemini 不适配导出的原因
+
+Gemini 页面启用了更严格的前端安全策略（Trusted Types / TrustedHTML 约束）。
+
+这会导致很多常见的 HTML 渲染导出链路（包含第三方库内部实现）在执行时触发受限赋值，从而出现：
+
+- `This document requires 'TrustedHTML' assignment`
+
+因此在 2.8 中，Gemini 站点已明确关闭导出入口并给出提示，避免用户在该站点重复触发失败流程。
+
+> 说明：导航功能仍可使用；当前限制仅针对导出流程。
+> 
 | **动作**            | **操作**                               |
 | ------------------- | -------------------------------------- |
 | **显示 / 隐藏面板** | `Alt + Q`                              |
@@ -31,7 +66,7 @@
 | **手动刷新列表**    | 点击顶部的 `↻` 图标                    |
 | **展开面板**        | 点击折叠后的小圆球即可恢复             |
 
-3. **页面展示：**
+1. **页面展示：**
 
 ![image-20260130093325848](assets/image-20260130093325848.png)
 
